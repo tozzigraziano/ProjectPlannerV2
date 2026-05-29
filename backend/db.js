@@ -69,6 +69,44 @@ db.exec(`
   );
 `);
 
+/** Normalizza un id: lo converte in stringa e rimuove il suffisso .0
+ * (SQLite converte i numeri JavaScript in REAL->TEXT aggiungendo .0). */
+function normalizeId(id) {
+  return String(id).replace(/\.0$/, '');
+}
+
+/**
+ * Migrazione one-time: rinomina le chiavi con suffisso .0 in tutte le tabelle.
+ * Se esiste già il record con chiave pulita, il duplicato .0 viene eliminato.
+ */
+function migrateFloatIds() {
+  const tables = ['resources', 'projects', 'templates', 'meetings', 'plants', 'local_holidays'];
+  for (const table of tables) {
+    const exists = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").get(table);
+    if (!exists) continue;
+    const rows = db.prepare(`SELECT id, data FROM ${table} WHERE id LIKE '%.0'`).all();
+    if (rows.length === 0) continue;
+    const migrate = db.transaction(() => {
+      for (const row of rows) {
+        const cleanId = row.id.replace(/\.0$/, '');
+        const data = JSON.parse(row.data);
+        data.id = cleanId;
+        const dup = db.prepare(`SELECT id FROM ${table} WHERE id = ?`).get(cleanId);
+        if (dup) {
+          db.prepare(`DELETE FROM ${table} WHERE id = ?`).run(row.id);
+        } else {
+          db.prepare(`INSERT INTO ${table} (id, data, updated_at) VALUES (?, ?, strftime('%s','now'))`).run(cleanId, JSON.stringify(data));
+          db.prepare(`DELETE FROM ${table} WHERE id = ?`).run(row.id);
+        }
+      }
+    });
+    migrate();
+    console.info(`[db] Migrati ${rows.length} id con suffisso .0 in tabella ${table}`);
+  }
+}
+
+migrateFloatIds();
+
 // ─── Prepared statements ──────────────────────────────────────────────────────
 const stmts = {};
 
@@ -94,24 +132,39 @@ function getStmt(tableName) {
 
 /** Ritorna tutti i record di una tabella come array di oggetti. */
 function getAll(tableName) {
-  return getStmt(tableName).getAll.all().map(row => JSON.parse(row.data));
+  return getStmt(tableName).getAll.all().map(row => {
+    const d = JSON.parse(row.data);
+    d.id = normalizeId(d.id);
+    return d;
+  });
 }
 
 /** Ritorna un singolo record per id, o null se non trovato. */
 function getById(tableName, id) {
-  const row = getStmt(tableName).getById.get(id);
-  return row ? JSON.parse(row.data) : null;
+  const nid = normalizeId(id);
+  const row = getStmt(tableName).getById.get(nid)
+           || getStmt(tableName).getById.get(nid + '.0');
+  if (!row) return null;
+  const d = JSON.parse(row.data);
+  d.id = nid;
+  return d;
 }
 
 /** Crea o aggiorna un record (upsert). Ritorna l'oggetto salvato. */
 function upsert(tableName, id, data) {
-  getStmt(tableName).upsert.run(id, JSON.stringify(data));
+  const nid = normalizeId(id);
+  data.id = nid;
+  getStmt(tableName).upsert.run(nid, JSON.stringify(data));
   return data;
 }
 
 /** Elimina un record per id. Ritorna true se eliminato, false se non trovato. */
 function deleteById(tableName, id) {
-  const result = getStmt(tableName).delete.run(id);
+  const nid = normalizeId(id);
+  let result = getStmt(tableName).delete.run(nid);
+  if (result.changes === 0) {
+    result = getStmt(tableName).delete.run(nid + '.0');
+  }
   return result.changes > 0;
 }
 
@@ -124,7 +177,9 @@ function replaceAll(tableName, items) {
   const tx = db.transaction((rows) => {
     s.deleteAll.run();
     for (const item of rows) {
-      s.upsert.run(item.id, JSON.stringify(item));
+      const nid = normalizeId(item.id);
+      item.id = nid;
+      s.upsert.run(nid, JSON.stringify(item));
     }
   });
   tx(items);

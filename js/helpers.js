@@ -59,9 +59,9 @@ export function parseDurationToMinutes(duration) {
 
 // ─── ID generation ────────────────────────────────────────────────────────────
 
-/** Genera un ID numerico univoco (compatibile con la v1). */
+/** Genera un ID stringa univoco. */
 export function generateId() {
-  return Date.now() + Math.floor(Math.random() * 10000);
+  return String(Date.now() + Math.floor(Math.random() * 10000));
 }
 
 // ─── Risorse ──────────────────────────────────────────────────────────────────

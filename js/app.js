@@ -159,7 +159,7 @@ function updateConnectionIndicator(online) {
   if (!el) return;
   el.classList.remove('online', 'offline', 'syncing');
   el.classList.add(online ? 'online' : 'offline');
-  el.title = online ? 'Database connesso' : 'Database offline – dati locali';
+  el.title = online ? 'Database connesso' : 'Backend non raggiungibile';
 }
 
 window.addEventListener('db:connectionChanged', (e) => {
@@ -236,7 +236,7 @@ function applyRoleRestrictions() {
 
 async function initApp() {
   try {
-    // Init DB (connessione backend + IDB fallback)
+    // Connessione al backend
     await db.init();
 
     // Aggiorna indicatore
@@ -340,6 +340,7 @@ window.deleteLocalHoliday       = Holidays.deleteLocalHoliday;
 
 // Resources
 window.saveResource             = Resources.saveResource;
+window.renderResources          = Resources.renderResources;
 window.editResource             = Resources.editResource;
 window.deleteResource           = Resources.deleteResource;
 window.openResourceModal        = Resources.openResourceModal;
