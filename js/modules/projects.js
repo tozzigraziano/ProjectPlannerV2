@@ -55,7 +55,8 @@ import {
     escapeHtml, formatDateLocal,
     getAllUniqueClients, getResourceName,
     hoursToHHMM, countWorkingDaysBetween,
-    calculateEndDateForTask, calculateStartDateForTask, calculateDateWithOffset
+    calculateEndDateForTask, calculateStartDateForTask, calculateDateWithOffset,
+    generateId
 } from '../helpers.js';
 import { calculateHolidays, renderHolidays } from './holidays.js';
 import { updateResourceSelects }             from './resources.js';
@@ -74,7 +75,7 @@ let _projectListScrollPosition = 0;
 
 /** Ritorna il progetto correntemente aperto (dal state). */
 function _currentProject() {
-    return state.projects.find(p => p.id === state.currentProjectId) || null;
+    return state.projects.find(p => p.id == state.currentProjectId) || null;
 }
 
 /** Notifica le viste dipendenti di aggiornarsi. */
@@ -379,8 +380,8 @@ export function renderProjects() {
                 </div>
             </td>
             <td class="action-buttons">
-                <button onclick="event.stopPropagation(); window.openProjectModal?.(${project.id})" class="secondary">✏️ Modifica</button>
-                <button onclick="event.stopPropagation(); window.deleteProject?.(${project.id})" class="delete">🗑️ Elimina</button>
+                <button onclick="event.stopPropagation(); window.openProjectModal?.('${project.id}')" class="secondary">✏️ Modifica</button>
+                <button onclick="event.stopPropagation(); window.deleteProject?.('${project.id}')" class="delete">🗑️ Elimina</button>
             </td>
         `;
 
@@ -464,7 +465,7 @@ export function openProjectModal(id = null) {
 
     if (id) {
         title.textContent = 'Modifica Progetto';
-        const project = state.projects.find(p => p.id === id);
+        const project = state.projects.find(p => p.id == id);
         if (project) {
             document.getElementById('projectClient').value      = project.client;
             document.getElementById('projectCode').value        = project.code;
@@ -510,11 +511,11 @@ export async function saveProject() {
     }
 
     const existingProject = state.currentProjectId
-        ? state.projects.find(p => p.id === state.currentProjectId)
+        ? state.projects.find(p => p.id == state.currentProjectId)
         : null;
 
     const project = {
-        id:          state.currentProjectId || Date.now(),
+        id:          state.currentProjectId || generateId(),
         client,
         code,
         description,
@@ -531,7 +532,7 @@ export async function saveProject() {
     if (state.currentProjectId) {
         // Aggiornamento
         const updatedProjects = state.projects.map(p =>
-            p.id === state.currentProjectId ? project : p
+            p.id == state.currentProjectId ? project : p
         );
         state.setProjects(updatedProjects);
     } else {
@@ -567,7 +568,7 @@ export async function saveProject() {
 export async function deleteProject(id) {
     if (!confirm('Sei sicuro di voler eliminare questo progetto?')) return;
 
-    state.setProjects(state.projects.filter(p => p.id !== id));
+    state.setProjects(state.projects.filter(p => p.id != id));
     await db.remove('projects', id);
 
     renderProjects();
@@ -590,7 +591,7 @@ export async function openProjectDetails(id) {
     if (anPanel) anPanel.style.display = 'none';
 
     state.setCurrentProjectId(id);
-    const project = state.projects.find(p => p.id === id);
+    const project = state.projects.find(p => p.id == id);
     if (!project) return;
 
     // Aggiorna header del dettaglio

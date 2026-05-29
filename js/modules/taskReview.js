@@ -100,8 +100,10 @@ export function analyzeSelectedTasks() {
 
     // Recupera i task dai progetti corrispondenti alle chiavi "projectId-taskId"
     const selectedTasks = selectedKeys.map(key => {
-        const [projectId, taskId] = key.split('-').map(Number);
-        const project = state.projects.find(p => p.id === projectId);
+        const dashIdx  = key.lastIndexOf('-');
+        const projectId = key.substring(0, dashIdx);
+        const taskId    = Number(key.substring(dashIdx + 1));
+        const project = state.projects.find(p => p.id = projectId);
         const task    = project?.tasks?.find(t => t.id === taskId);
         return task && task.startDate && task.endDate ? task : null;
     }).filter(Boolean);
@@ -228,8 +230,10 @@ export function sendTaskReviewEmail() {
     const selectedTasks = [];
     checkboxes.forEach(cb => {
         const taskKey              = cb.getAttribute('data-task-key');
-        const [projectId, taskId] = taskKey.split('-').map(Number);
-        const project              = state.projects.find(p => p.id === projectId);
+        const dashIdx2             = taskKey.lastIndexOf('-');
+        const projectId            = taskKey.substring(0, dashIdx2);
+        const taskId               = Number(taskKey.substring(dashIdx2 + 1));
+        const project              = state.projects.find(p => p.id == projectId);
         const task                 = project?.tasks?.find(t => t.id === taskId);
 
         if (project && task) {
@@ -448,7 +452,7 @@ export function renderTaskReview() {
             <td>${typeIndicator}</td>
             <td>${getLocationBadgeHtml(task)}</td>
             <td class="action-buttons">
-                <button onclick="openTaskFromReview(${task.id}, ${project.id})" class="secondary" title="Modifica attività">✏️</button>
+                <button onclick="openTaskFromReview(${task.id}, '${project.id}')" class="secondary" title="Modifica attività">✏️</button>
             </td>
         `;
         tbody.appendChild(tr);

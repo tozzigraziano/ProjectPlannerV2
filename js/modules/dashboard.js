@@ -249,7 +249,7 @@ export function renderDashboard() {
         html += '<ul class="dashboard-list">';
         overdueTasks.slice(0, 15).forEach(item => {
             const daysLate = Math.ceil((today - new Date(item.task.endDate)) / 86400000);
-            html += `<li style="cursor:pointer;" onclick="navigateToProject(${item.project.id})" title="Vai al progetto">
+            html += `<li style="cursor:pointer;" onclick="navigateToProject('${item.project.id}')" title="Vai al progetto">
                 <div>
                     <strong>${escapeHtml(item.task.name)}</strong><br>
                     <small style="color: var(--text-tertiary);">${escapeHtml(item.project.client)} — ${escapeHtml(item.project.code)}</small>
@@ -387,7 +387,7 @@ export function renderDashboard() {
 
             const compClass = item.task.completion >= 75 ? 'success'
                             : item.task.completion >= 40 ? 'warning' : 'danger';
-            html += `<tr style="cursor:pointer;" onclick="navigateToProject(${item.project.id})" title="Vai al progetto">
+            html += `<tr style="cursor:pointer;" onclick="navigateToProject('${item.project.id}')" title="Vai al progetto">
                 <td>${escapeHtml(item.project.client)}</td>
                 <td>${escapeHtml(item.project.code)}</td>
                 <td>${escapeHtml(item.task.name)}</td>
@@ -412,7 +412,7 @@ export function renderDashboard() {
         inProgressProjects.sort((a, b) => a.avgCompletion - b.avgCompletion).forEach(item => {
             const compClass = item.avgCompletion >= 75 ? 'success'
                             : item.avgCompletion >= 40 ? 'warning' : 'danger';
-            html += `<tr style="cursor:pointer;" onclick="navigateToProject(${item.project.id})" title="Vai al progetto">
+            html += `<tr style="cursor:pointer;" onclick="navigateToProject('${item.project.id}')" title="Vai al progetto">
                 <td>${escapeHtml(item.project.client)}</td>
                 <td>${escapeHtml(item.project.code)}</td>
                 <td>${item.taskCount}</td>

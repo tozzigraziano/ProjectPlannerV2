@@ -22,7 +22,8 @@ import * as state from '../state.js';
 import {
     openModal, closeModal,
     escapeHtml, formatDateLocal,
-    calculateEndDateForTask
+    calculateEndDateForTask,
+    generateId
 } from '../helpers.js';
 import { calculateHolidays, renderHolidays } from './holidays.js';
 
@@ -48,7 +49,7 @@ export function openTemplateModal(id = null) {
 
     if (id) {
         title.textContent = 'Modifica Template';
-        const template = state.templates.find(t => t.id === id);
+        const template = state.templates.find(t => t.id == id);
         if (template) document.getElementById('templateName').value = template.name;
     } else {
         title.textContent = 'Nuovo Template';
@@ -77,11 +78,11 @@ export async function saveTemplate() {
     if (!templateName) { alert('Nome template obbligatorio'); return; }
 
     const existing = _currentTemplateId
-        ? state.templates.find(t => t.id === _currentTemplateId)
+        ? state.templates.find(t => t.id == _currentTemplateId)
         : null;
 
     const template = {
-        id:         _currentTemplateId || Date.now(),
+        id:         _currentTemplateId || generateId(),
         name:       templateName,
         milestones: existing ? existing.milestones  : [],
         tasks:      existing ? existing.tasks       : [],
@@ -89,7 +90,7 @@ export async function saveTemplate() {
     };
 
     const updatedTemplates = _currentTemplateId
-        ? state.templates.map(t => t.id === _currentTemplateId ? template : t)
+        ? state.templates.map(t => t.id == _currentTemplateId ? template : t)
         : [...state.templates, template];
 
     state.setTemplates(updatedTemplates);
@@ -103,7 +104,7 @@ export async function saveTemplate() {
 
 /** Porta il template in modalità modifica (inline, non modal). */
 export function editTemplate(id) {
-    const template = state.templates.find(t => t.id === id);
+    const template = state.templates.find(t => t.id == id);
     if (!template) return;
     _currentTemplateId = id;
     document.getElementById('templateName').value = template.name;
@@ -113,7 +114,7 @@ export function editTemplate(id) {
 /** Mostra la sezione dettagli (milestone + task) del template. */
 export function openTemplateDetails(id) {
     _currentTemplateId = id;
-    const template = state.templates.find(t => t.id === id);
+    const template = state.templates.find(t => t.id == id);
     if (!template) return;
 
     document.getElementById('currentTemplateName').textContent = template.name;
@@ -139,7 +140,7 @@ export function closeTemplateDetails() {
 /** Elimina un template per id. */
 export async function deleteTemplate(id) {
     if (!confirm('Sei sicuro di voler eliminare questo template?')) return;
-    state.setTemplates(state.templates.filter(t => t.id !== id));
+    state.setTemplates(state.templates.filter(t => t.id != id));
     await db.remove('templates', id);
     renderTemplates();
     updateTemplateSelects();
@@ -154,7 +155,7 @@ export async function deleteTemplate(id) {
 export async function applyTemplateToProject(templateId, projectId, skipConfirm = false) {
     // Usa == per compatibilità string/number
     const template = state.templates.find(t => t.id == templateId);
-    const project  = state.projects.find(p => p.id === projectId);
+    const project  = state.projects.find(p => p.id == projectId);
 
     if (!template) { console.warn('[applyTemplateToProject] Template non trovato. templateId=', templateId); return; }
     if (!project)  { console.warn('[applyTemplateToProject] Progetto non trovato. projectId=', projectId);  return; }
@@ -300,9 +301,9 @@ export function renderTemplates() {
             <td>${template.milestones ? template.milestones.length : 0}</td>
             <td>${template.tasks ? template.tasks.length : 0}</td>
             <td class="action-buttons">
-                <button onclick="openTemplateModal(${template.id})" class="secondary">✏️ Modifica</button>
-                <button onclick="openTemplateDetails(${template.id})" class="secondary">📋 Dettagli</button>
-                <button onclick="deleteTemplate(${template.id})" class="delete">🗑️ Elimina</button>
+                <button onclick="openTemplateModal('${template.id}')" class="secondary">✏️ Modifica</button>
+                <button onclick="openTemplateDetails('${template.id}')" class="secondary">📋 Dettagli</button>
+                <button onclick="deleteTemplate('${template.id}')" class="delete">🗑️ Elimina</button>
             </td>
         `;
         tbody.appendChild(tr);

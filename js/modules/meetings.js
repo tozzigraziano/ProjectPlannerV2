@@ -66,7 +66,7 @@ export function updateMeetingTagsSuggestions() {
 
 /** Renderizza la tabella delle riunioni del progetto corrente. */
 export function renderProjectMeetings() {
-    const project = state.projects.find(p => p.id === state.currentProjectId);
+    const project = state.projects.find(p => p.id == state.currentProjectId);
     if (!project) return;
 
     const tbody = document.querySelector('#projectMeetingsTable tbody');
@@ -117,7 +117,7 @@ export function openProjectMeetingModal(id = null, viewOnly = false) {
     if (saveBtn) saveBtn.style.display = isViewOnly ? 'none' : 'inline-block';
 
     if (id !== null) {
-        const project  = state.projects.find(p => p.id === state.currentProjectId);
+        const project  = state.projects.find(p => p.id == state.currentProjectId);
         const sorted   = [...(project.meetings || [])].sort((a, b) => new Date(b.date) - new Date(a.date));
         const meeting  = sorted[id];
 
@@ -144,7 +144,7 @@ export function closeProjectMeetingModal() {
 
 /** Salva (crea o aggiorna) una riunione di progetto. */
 export async function saveProjectMeeting() {
-    const project = state.projects.find(p => p.id === state.currentProjectId);
+    const project = state.projects.find(p => p.id == state.currentProjectId);
     if (!project) return;
 
     const date         = document.getElementById('meetingDate').value;
@@ -179,7 +179,7 @@ export async function saveProjectMeeting() {
 export async function deleteProjectMeeting(index) {
     if (!confirm('Eliminare questa riunione?')) return;
 
-    const project = state.projects.find(p => p.id === state.currentProjectId);
+    const project = state.projects.find(p => p.id == state.currentProjectId);
     if (!project || !project.meetings) return;
 
     const sorted = [...project.meetings].sort((a, b) => new Date(b.date) - new Date(a.date));

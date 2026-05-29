@@ -86,7 +86,7 @@ export function renderAnnotations() {
             <td>${startDateFormatted}</td>
             <td style="max-width: 350px;"><span title="${escapeHtml(task.annotation)}">${escapeHtml(task.annotation)}</span></td>
             <td class="action-buttons">
-                <button onclick="openTaskFromAnnotations(${task.id}, ${project.id})" class="secondary" title="Modifica attività">✏️</button>
+                <button onclick="openTaskFromAnnotations(${task.id}, '${project.id}')" class="secondary" title="Modifica attività">✏️</button>
             </td>
         `;
         tbody.appendChild(tr);

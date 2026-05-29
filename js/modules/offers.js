@@ -93,7 +93,7 @@ function _triggerViewRefresh(views = []) {
 
 /** Ritorna il progetto corrente (identificato da state.currentProjectId). */
 function _currentProject() {
-    return state.projects.find(p => p.id === state.currentProjectId) || null;
+    return state.projects.find(p => p.id == state.currentProjectId) || null;
 }
 
 // ─── OFFERTE – Tab panoramica globale ─────────────────────────────────────────

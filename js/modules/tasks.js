@@ -91,7 +91,7 @@ import {
 
 /** Ritorna il progetto correntemente aperto. */
 function _currentProject() {
-    return state.projects.find(p => p.id === state.currentProjectId) || null;
+    return state.projects.find(p => p.id == state.currentProjectId) || null;
 }
 
 // ─── Inizializzazione event listener del modal ─────────────────────────────────
@@ -1629,7 +1629,7 @@ export function renderTasks() {
             <td class="action-buttons">
                 <button onclick="window.openTaskModal?.(${task.id})" class="secondary">✏️ Modifica</button>
                 <button onclick="window.openSplitTaskModal?.(${task.id})" class="secondary" title="Spezza o duplica attività">✂️ Spezza/Duplica</button>
-                <button onclick="window.openCopyTaskModal?.(${task.id}, ${state.currentProjectId})" class="secondary" title="Copia su altri progetti">📋 Copia</button>
+                <button onclick="window.openCopyTaskModal?.(${task.id}, '${state.currentProjectId}')" class="secondary" title="Copia su altri progetti">📋 Copia</button>
                 <button onclick="window.deleteTask?.(${task.id})" class="delete">🗑️ Elimina</button>
             </td>
         `;

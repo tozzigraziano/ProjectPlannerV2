@@ -40,7 +40,7 @@ export function openMilestoneModal(id = null) {
 
     if (id) {
         title.textContent = 'Modifica Punto di Controllo';
-        const project = state.projects.find(p => p.id === state.currentProjectId);
+        const project = state.projects.find(p => p.id == state.currentProjectId);
         if (project) {
             const milestone = (project.milestones || []).find(m => m.id === id);
             if (milestone) {
@@ -81,7 +81,7 @@ export async function saveMilestone() {
         return;
     }
 
-    const project = state.projects.find(p => p.id === state.currentProjectId);
+    const project = state.projects.find(p => p.id == state.currentProjectId);
     if (!project) return;
 
     if (!project.milestones) project.milestones = [];
@@ -117,7 +117,7 @@ export async function saveMilestone() {
 export async function deleteMilestone(id) {
     if (!confirm('Sei sicuro di voler eliminare questo punto di controllo?')) return;
 
-    const project = state.projects.find(p => p.id === state.currentProjectId);
+    const project = state.projects.find(p => p.id == state.currentProjectId);
     if (!project) return;
 
     project.milestones = (project.milestones || []).filter(m => m.id !== id);
@@ -129,7 +129,7 @@ export async function deleteMilestone(id) {
 
 /** Renderizza la tabella milestone del progetto corrente. */
 export function renderMilestones() {
-    const project = state.projects.find(p => p.id === state.currentProjectId);
+    const project = state.projects.find(p => p.id == state.currentProjectId);
     if (!project) return;
 
     const tbody = document.querySelector('#milestonesTable tbody');

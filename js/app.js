@@ -322,6 +322,96 @@ window.addEventListener('app:openTask', (e) => {
   if (taskId) Tasks.openTaskModal?.(taskId);
 });
 
+// ─── Markdown Editor ──────────────────────────────────────────────────────────
+
+/**
+ * Applica la vista corretta (edit / view-only) su un editor markdown già creato.
+ */
+function _applyMarkdownView(tabsDiv, previewDiv, textarea, isViewOnly) {
+  const editBtn    = tabsDiv.querySelector('[data-md-tab="edit"]');
+  const previewBtn = tabsDiv.querySelector('[data-md-tab="preview"]');
+
+  if (isViewOnly) {
+    if (editBtn)    { editBtn.style.display = 'none'; editBtn.classList.remove('active'); }
+    if (previewBtn) { previewBtn.classList.add('active'); }
+    textarea.style.display = 'none';
+    previewDiv.innerHTML = typeof marked !== 'undefined'
+      ? marked.parse(textarea.value || '')
+      : '<pre>' + (textarea.value || '') + '</pre>';
+    previewDiv.classList.add('active');
+  } else {
+    if (editBtn)    { editBtn.style.display = ''; editBtn.classList.add('active'); }
+    if (previewBtn) { previewBtn.classList.remove('active'); }
+    textarea.style.display = '';
+    previewDiv.classList.remove('active');
+  }
+}
+
+/**
+ * Inizializza un editor markdown con tab Testo/Anteprima attorno a un textarea.
+ * Idempotente: se i tab sono già presenti non li duplica.
+ *
+ * @param {string}      textareaId  - ID del textarea da arricchire
+ * @param {string|null} containerId - ID del container già esistente (opzionale)
+ * @param {boolean}     isViewOnly  - se true mostra solo la preview renderizzata
+ */
+window.createMarkdownEditor = function createMarkdownEditor(textareaId, containerId, isViewOnly) {
+  const textarea = document.getElementById(textareaId);
+  if (!textarea) return;
+
+  const container = containerId
+    ? document.getElementById(containerId)
+    : textarea.parentElement;
+  if (!container) return;
+
+  // Idempotenza: se i tab sono già presenti aggiorna solo la vista
+  const existing = container.querySelector('.markdown-tabs[data-for="' + textareaId + '"]');
+  if (existing) {
+    const existingPreview = container.querySelector('.markdown-preview[data-for="' + textareaId + '"]');
+    if (existingPreview) _applyMarkdownView(existing, existingPreview, textarea, isViewOnly);
+    return;
+  }
+
+  // Crea tab bar
+  const tabsDiv = document.createElement('div');
+  tabsDiv.className = 'markdown-tabs';
+  tabsDiv.setAttribute('data-for', textareaId);
+  tabsDiv.innerHTML =
+    '<button class="markdown-tab active" data-md-tab="edit">✏️ Testo</button>' +
+    '<button class="markdown-tab" data-md-tab="preview">👁️ Anteprima</button>';
+
+  // Crea pannello preview
+  const previewDiv = document.createElement('div');
+  previewDiv.className = 'markdown-preview';
+  previewDiv.setAttribute('data-for', textareaId);
+
+  // Inserisce tabs prima del textarea, preview subito dopo
+  container.insertBefore(tabsDiv, textarea);
+  textarea.insertAdjacentElement('afterend', previewDiv);
+
+  // Event listener: switch tra i tab
+  tabsDiv.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-md-tab]');
+    if (!btn) return;
+    const target = btn.getAttribute('data-md-tab');
+    tabsDiv.querySelectorAll('.markdown-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    if (target === 'preview') {
+      textarea.style.display = 'none';
+      previewDiv.innerHTML = typeof marked !== 'undefined'
+        ? marked.parse(textarea.value || '')
+        : '<pre>' + (textarea.value || '') + '</pre>';
+      previewDiv.classList.add('active');
+    } else {
+      textarea.style.display = '';
+      previewDiv.classList.remove('active');
+    }
+  });
+
+  // Vista iniziale
+  _applyMarkdownView(tabsDiv, previewDiv, textarea, isViewOnly);
+};
+
 // ─── Esposizione globale ──────────────────────────────────────────────────────
 // Le funzioni usate negli handler onclick="" del template HTML devono essere
 // accessibili globalmente. Le esportiamo su window.
@@ -388,6 +478,7 @@ window.deleteTemplate           = Templates.deleteTemplate;
 window.openTemplateModal        = Templates.openTemplateModal;
 window.closeTemplateModal       = Templates.closeTemplateModal;
 window.applyTemplate            = Templates.applyTemplate;
+window.applyTemplateToProject   = Templates.applyTemplateToProject;
 window.openTemplateDetails      = Templates.openTemplateDetails;
 window.closeTemplateDetails     = Templates.closeTemplateDetails;
 window.saveTemplateTask         = Templates.saveTemplateTask;

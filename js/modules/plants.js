@@ -12,7 +12,7 @@
 
 import * as db    from '../db.js';
 import * as state from '../state.js';
-import { openModal, closeModal, escapeHtml, getAllUniqueClients } from '../helpers.js';
+import { openModal, closeModal, escapeHtml, getAllUniqueClients, generateId } from '../helpers.js';
 
 // ─── Stato modulo ─────────────────────────────────────────────────────────────
 
@@ -201,7 +201,7 @@ export function openPlantModal(id = null) {
 
     if (id) {
         title.textContent = 'Modifica Stabilimento';
-        const plant = state.plants.find(p => p.id === id);
+        const plant = state.plants.find(p => p.id == id);
         if (plant) {
             document.getElementById('plantName').value    = plant.name    || '';
             document.getElementById('plantClient').value  = plant.client  || '';
@@ -259,7 +259,7 @@ export async function savePlant() {
     }
 
     const plant = {
-        id:      _editingId || Date.now(),
+        id:      _editingId || generateId(),
         name,
         client,
         address: document.getElementById('plantAddress').value.trim(),
@@ -270,7 +270,7 @@ export async function savePlant() {
 
     const updated = [...state.plants];
     if (_editingId) {
-        const index = updated.findIndex(p => p.id === _editingId);
+        const index = updated.findIndex(p => p.id == _editingId);
         if (index !== -1) updated[index] = plant;
     } else {
         updated.push(plant);
@@ -285,7 +285,7 @@ export async function savePlant() {
 /** Elimina uno stabilimento. */
 export async function deletePlant(id) {
     if (!confirm('Sei sicuro di voler eliminare questo stabilimento?')) return;
-    state.setPlants(state.plants.filter(p => p.id !== id));
+    state.setPlants(state.plants.filter(p => p.id != id));
     await db.remove('plants', id);
     renderPlants();
 }
@@ -326,8 +326,8 @@ export function renderPlants() {
             <td>${escapeHtml(plant.address || '-')}</td>
             <td>${(plant.lat && plant.lng) ? `${plant.lat.toFixed(4)}, ${plant.lng.toFixed(4)}` : '-'}</td>
             <td class="action-buttons">
-                <button onclick="openPlantModal(${plant.id})">✏️</button>
-                <button class="delete" onclick="deletePlant(${plant.id})">🗑️</button>
+                <button onclick="openPlantModal('${plant.id}')">✏️</button>
+                <button class="delete" onclick="deletePlant('${plant.id}')">🗑️</button>
             </td>
         `;
     });

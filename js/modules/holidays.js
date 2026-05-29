@@ -5,7 +5,7 @@
  */
 import * as db from '../db.js';
 import * as state from '../state.js';
-import { openModal, closeModal } from '../helpers.js';
+import { openModal, closeModal, generateId } from '../helpers.js';
 
 // ─── Festività nazionali ──────────────────────────────────────────────────────
 
@@ -157,8 +157,8 @@ export function renderLocalHolidays() {
             <td>${holiday.name}</td>
             <td>${holiday.day} ${monthNames[holiday.month - 1]}</td>
             <td class="action-buttons">
-                <button onclick="openLocalHolidayModal(${holiday.id})" class="secondary">✏️ Modifica</button>
-                <button onclick="deleteLocalHoliday(${holiday.id})" class="delete">🗑️ Elimina</button>
+                <button onclick="openLocalHolidayModal('${holiday.id}')" class="secondary">✏️ Modifica</button>
+                <button onclick="deleteLocalHoliday('${holiday.id}')" class="delete">🗑️ Elimina</button>
             </td>
         `;
         tbody.appendChild(tr);
@@ -178,7 +178,7 @@ export function openLocalHolidayModal(id = null) {
 
     if (id) {
         title.textContent = 'Modifica Festività Locale';
-        const holiday = state.localHolidays.find(h => h.id === id);
+        const holiday = state.localHolidays.find(h => h.id == id);
         if (holiday) {
             document.getElementById('localHolidayName').value = holiday.name;
             document.getElementById('localHolidayDay').value = holiday.day;
@@ -222,7 +222,7 @@ export async function saveLocalHoliday() {
     }
 
     const localHoliday = {
-        id: state.editingLocalHolidayId || Date.now(),
+        id: state.editingLocalHolidayId || generateId(),
         name,
         day,
         month
@@ -230,14 +230,21 @@ export async function saveLocalHoliday() {
 
     if (state.editingLocalHolidayId) {
         const updated = state.localHolidays.map(h =>
-            h.id === state.editingLocalHolidayId ? localHoliday : h
+            h.id == state.editingLocalHolidayId ? localHoliday : h
         );
         state.setLocalHolidays(updated);
     } else {
         state.setLocalHolidays([...state.localHolidays, localHoliday]);
     }
 
-    await db.save('localHolidays', localHoliday);
+    const saved = await db.save('localHolidays', localHoliday);
+    // Aggiorna l'id nello state con quello normalizzato restituito dal server
+    if (saved && saved.id !== localHoliday.id) {
+        const updated = state.localHolidays.map(h =>
+            h.id == localHoliday.id ? saved : h
+        );
+        state.setLocalHolidays(updated);
+    }
     calculateHolidays();
     renderLocalHolidays();
     renderHolidays();
@@ -249,7 +256,7 @@ export async function saveLocalHoliday() {
  * @param {number} id
  */
 export function editLocalHoliday(id) {
-    const holiday = state.localHolidays.find(h => h.id === id);
+    const holiday = state.localHolidays.find(h => h.id == id);
     if (!holiday) return;
 
     state.setEditingLocalHolidayId(id);
@@ -267,7 +274,7 @@ export function editLocalHoliday(id) {
  */
 export async function deleteLocalHoliday(id) {
     if (!confirm('Sei sicuro di voler eliminare questa festività locale?')) return;
-    state.setLocalHolidays(state.localHolidays.filter(h => h.id !== id));
+    state.setLocalHolidays(state.localHolidays.filter(h => h.id != id));
     await db.remove('localHolidays', id);
     calculateHolidays();
     renderLocalHolidays();
