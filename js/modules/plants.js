@@ -290,6 +290,96 @@ export async function deletePlant(id) {
     renderPlants();
 }
 
+// ─── Helpers selettore stabilimento nel modal attività ────────────────────────
+
+/**
+ * Ritorna il cliente del progetto corrente (da state), o null.
+ */
+function _getCurrentProjectClient() {
+    const project = state.projects.find(p => p.id == state.currentProjectId);
+    return project?.client || null;
+}
+
+/**
+ * Popola il select #taskPlantId con gli stabilimenti filtrati per cliente
+ * del progetto corrente. Preserva il valore selezionato se ancora disponibile.
+ */
+export function updatePlantSelect() {
+    const sel = document.getElementById('taskPlantId');
+    if (!sel) return;
+    const current = sel.value;
+    const client  = _getCurrentProjectClient();
+
+    // Filtra per cliente se disponibile, altrimenti mostra tutti
+    const filtered = client
+        ? state.plants.filter(p => (p.client || '').toLowerCase() === client.toLowerCase())
+        : state.plants;
+
+    sel.innerHTML = '';
+    if (filtered.length === 0) {
+        const opt = document.createElement('option');
+        opt.value   = '';
+        opt.textContent = client
+            ? `Nessuno stabilimento per "${client}"`
+            : 'Nessuno stabilimento presente';
+        opt.disabled = true;
+        sel.appendChild(opt);
+    } else {
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = '-- Seleziona Stabilimento --';
+        sel.appendChild(placeholder);
+        filtered.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value       = p.id;
+            opt.textContent = p.name;
+            sel.appendChild(opt);
+        });
+        if (current && filtered.some(p => String(p.id) === String(current))) {
+            sel.value = current;
+        }
+    }
+}
+
+/**
+ * Mostra/nasconde il select stabilimenti e il badge info in base a #taskLocationType.
+ * Quando si mostra, aggiorna anche la lista degli stabilimenti filtrata per cliente.
+ */
+export function togglePlantSelector() {
+    const locationType = document.getElementById('taskLocationType')?.value;
+    const plantSel     = document.getElementById('taskPlantId');
+    const plantInfo    = document.getElementById('taskPlantInfo');
+    if (!plantSel) return;
+    const isCliente = locationType === 'cliente';
+    plantSel.style.display = isCliente ? '' : 'none';
+    if (isCliente) {
+        updatePlantSelect();
+    } else {
+        plantSel.value = '';
+        if (plantInfo) { plantInfo.style.display = 'none'; plantInfo.textContent = ''; }
+    }
+}
+
+/**
+ * Aggiorna il badge #taskPlantInfo con indirizzo (e coordinate) dello stabilimento selezionato.
+ */
+export function updatePlantInfoBadge() {
+    const sel   = document.getElementById('taskPlantId');
+    const badge = document.getElementById('taskPlantInfo');
+    if (!sel || !badge) return;
+    const plant = state.plants.find(p => String(p.id) === String(sel.value));
+    if (plant && sel.value) {
+        const parts = [];
+        if (plant.address) parts.push('📍 ' + plant.address);
+        if (plant.lat && plant.lng) parts.push(`(${plant.lat.toFixed(4)}, ${plant.lng.toFixed(4)})`);
+        badge.textContent   = parts.length ? parts.join(' ') : plant.name;
+        badge.style.display = '';
+    } else {
+        badge.textContent   = '';
+        badge.style.display = 'none';
+    }
+}
+
 /** Renderizza la tabella degli stabilimenti con filtri attivi. */
 export function renderPlants() {
     const tbody = document.querySelector('#plantsTable tbody');

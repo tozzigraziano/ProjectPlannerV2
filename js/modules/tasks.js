@@ -73,6 +73,7 @@ import {
     formatDateLocal,
     escapeHtml,
     getLocationBadgeHtml,
+    getResourceName,
     countWorkingDaysBetween,
     calculateEndDateForTask,
     calculateStartDateForTask,
@@ -1064,6 +1065,11 @@ export async function saveTask() {
         }
     });
 
+    // Auto-imposta completamento 100% su tutte le risorse se il task è completato al 100%
+    if (completion === 100) {
+        assignedResources.forEach(r => { r.completion = 100; });
+    }
+
     // Checklist
     const checklistItems = typeof getChecklistItems === 'function' ? getChecklistItems() : [];
 
@@ -1148,7 +1154,18 @@ export async function saveTask() {
         });
     }
 
-    await db.save('projects', project);
+    // Personal: usa PATCH per aggiornare solo i campi consentiti (completion/status/propria risorsa)
+    const _saveUser = Auth.getCurrentUser();
+    if (_saveUser?.role === 'personal') {
+        await db.patch('projects', project.id, {
+            taskId:    task.id,
+            status:    task.status,
+            completion: task.completion,
+            resources: task.resources.map(r => ({ resourceId: r.resourceId, completion: r.completion }))
+        });
+    } else {
+        await db.save('projects', project);
+    }
     calculateHolidays();
     renderHolidays();
     renderTasks();
@@ -1460,17 +1477,54 @@ export function renderTasks() {
     tasksToRender.forEach(({ group, tasks: sectionTasks }) => {
         // Intestazione gruppo
         if (group) {
+            // ── Calcolo riepilogo gruppo ──
+            const activeTasks = sectionTasks.filter(t => t.status !== 'annullata');
+            const startDates  = activeTasks.map(t => t.startDate).filter(Boolean).sort();
+            const endDates    = activeTasks.map(t => t.endDate).filter(Boolean).sort();
+            const groupStart  = startDates[0] || null;
+            const groupEnd    = endDates[endDates.length - 1] || null;
+            const totalDur    = activeTasks.reduce((s, t) => s + (Number(t.duration) || 0), 0);
+            const avgComp     = activeTasks.length
+                ? Math.round(activeTasks.reduce((s, t) => s + (Number(t.completion) || 0), 0) / activeTasks.length)
+                : 0;
+            // Risorse uniche
+            const resourceIds = new Set();
+            activeTasks.forEach(t => (t.resources || []).forEach(r => resourceIds.add(r.resourceId)));
+            const resourcesStr = resourceIds.size
+                ? [...resourceIds].map(rid => getResourceName(rid)).filter(n => n && n !== 'Sconosciuto').join(', ')
+                : '';
+            // Barra completamento
+            const compColor = avgComp >= 100 ? 'var(--success-color,#27ae60)'
+                            : avgComp >= 50  ? 'var(--accent-color)'
+                            : 'var(--warning-color,#f39c12)';
+            const summaryHtml = `
+                <span class="task-group-summary">
+                    ${groupStart ? `<span title="Data inizio">📅 ${groupStart}</span>` : ''}
+                    ${groupEnd   ? `<span title="Data fine">→ ${groupEnd}</span>` : ''}
+                    ${totalDur   ? `<span title="Durata totale">⏱ ${totalDur}h</span>` : ''}
+                    <span title="Completamento medio" style="display:inline-flex;align-items:center;gap:4px;">
+                        <span style="display:inline-block;width:48px;height:6px;background:var(--border-color);border-radius:3px;overflow:hidden;vertical-align:middle;">
+                            <span style="display:block;width:${avgComp}%;height:100%;background:${compColor};"></span>
+                        </span>
+                        ${avgComp}%
+                    </span>
+                    ${resourcesStr ? `<span class="task-group-resources" title="Risorse coinvolte">👤 ${escapeHtml(resourcesStr)}</span>` : ''}
+                </span>`;
+
             const headerTr = document.createElement('tr');
             headerTr.className = 'task-group-header';
             headerTr.setAttribute('data-group-id', group.id);
             headerTr.innerHTML = `<td colspan="11" style="background:${group.color}22; border-left:4px solid ${group.color}; padding:6px 12px;">
-                <span class="task-group-color-bar" style="background:${group.color};"></span>
-                <strong>${escapeHtml(group.name)}</strong>
-                <span style="font-size:0.85em; color:var(--text-secondary); margin-left:8px;">${sectionTasks.length} attivit\u00e0</span>
-                <span style="float:right; display:flex; gap:4px;">
-                    <button onclick="event.stopPropagation(); window.openGroupModal?.('${group.id}')" class="secondary" style="font-size:11px; padding:2px 8px;">\u270f\ufe0f Modifica</button>
-                    <button onclick="event.stopPropagation(); window.deleteGroup?.('${group.id}')" class="delete" style="font-size:11px; padding:2px 8px;">\ud83d\uddd1\ufe0f</button>
-                </span>
+                <div class="task-group-header-inner">
+                    <span class="task-group-color-bar" style="background:${group.color};"></span>
+                    <strong>${escapeHtml(group.name)}</strong>
+                    <span style="font-size:0.85em; color:var(--text-secondary); margin-left:6px;">${sectionTasks.length} attività</span>
+                    ${summaryHtml}
+                    <span class="task-group-actions">
+                        <button onclick="event.stopPropagation(); window.openGroupModal?.('${group.id}')" class="secondary" style="font-size:11px; padding:2px 8px;">✏️ Modifica</button>
+                        <button onclick="event.stopPropagation(); window.deleteGroup?.('${group.id}')" class="delete" style="font-size:11px; padding:2px 8px;">🗑️</button>
+                    </span>
+                </div>
             </td>`;
             headerTr.onclick = (e) => {
                 if (e.target.tagName === 'BUTTON') return;

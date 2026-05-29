@@ -57,6 +57,50 @@ router.put('/:id', (req, res) => {
   res.json(upsert('projects', req.params.id, data));
 });
 
+// PATCH /:id – aggiornamento parziale di un task (completion/status/risorsa propria)
+// Consente agli utenti personal di salvare i propri avanzamenti.
+router.patch('/:id', (req, res) => {
+  const user    = req.user;
+  const project = getById('projects', req.params.id);
+  if (!project) return res.status(404).json({ error: 'Non trovato' });
+
+  const { taskId, status, completion, resources } = req.body;
+  if (!taskId) return res.status(400).json({ error: 'taskId mancante' });
+
+  const task = project.tasks?.find(t => String(t.id) === String(taskId));
+  if (!task) return res.status(404).json({ error: 'Task non trovato' });
+
+  if (user.role === 'personal') {
+    // Verifica che l'utente sia assegnato al task
+    const assigned = task.resources?.some(r => String(r.resourceId) === String(user.resourceId));
+    if (!assigned) return res.status(403).json({ error: 'Non assegnato a questo task' });
+    // Aggiorna solo i campi consentiti
+    if (status     !== undefined) task.status     = status;
+    if (completion !== undefined) task.completion = completion;
+    if (Array.isArray(resources)) {
+      resources.forEach(patch => {
+        // Il personal può aggiornare solo il completamento della propria risorsa
+        if (String(patch.resourceId) !== String(user.resourceId)) return;
+        const entry = task.resources.find(r => String(r.resourceId) === String(patch.resourceId));
+        if (entry) entry.completion = patch.completion;
+      });
+    }
+  } else if (WRITE_ROLES.includes(user.role)) {
+    if (status     !== undefined) task.status     = status;
+    if (completion !== undefined) task.completion = completion;
+    if (Array.isArray(resources)) {
+      resources.forEach(patch => {
+        const entry = task.resources.find(r => String(r.resourceId) === String(patch.resourceId));
+        if (entry) entry.completion = patch.completion;
+      });
+    }
+  } else {
+    return res.status(403).json({ error: 'Accesso negato: sola lettura' });
+  }
+
+  res.json(upsert('projects', req.params.id, project));
+});
+
 // DELETE /:id – solo admin ed editor
 router.delete('/:id', (req, res) => {
   if (!WRITE_ROLES.includes(req.user?.role))

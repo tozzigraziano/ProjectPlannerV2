@@ -2038,7 +2038,7 @@
                                 <option value="cliente">🏭 Presso Cliente</option>
                                 <option value="remoto">📡 Da Remoto</option>
                             </select>
-                            <select id="taskPlantId" style="width: 250px; display: none;">
+                            <select id="taskPlantId" style="width: 250px; display: none;" onchange="updatePlantInfoBadge()">
                                 <option value="">-- Seleziona Stabilimento --</option>
                             </select>
                             <span id="taskPlantInfo" class="plant-info-badge" style="display: none;"></span>

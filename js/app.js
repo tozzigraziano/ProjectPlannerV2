@@ -1,4 +1,4 @@
-/**
+﻿/**
  * js/app.js  –  Entry point dell'applicazione v2
  *
  * Responsabilità:
@@ -322,95 +322,276 @@ window.addEventListener('app:openTask', (e) => {
   if (taskId) Tasks.openTaskModal?.(taskId);
 });
 
+// ─── Checklist attività ───────────────────────────────────────────────────────
+
+function _buildChecklistRow(item) {
+  const div = document.createElement('div');
+  div.className = 'checklist-item';
+  div.dataset.checklistId = String(item.id);
+  div.innerHTML = `
+    <input type="checkbox" class="checklist-check" ${item.completed ? 'checked' : ''}
+      onchange="this.closest('.checklist-item').classList.toggle('completed', this.checked)">
+    <input type="text" class="checklist-text" value="${item.text.replace(/"/g, '&quot;')}"
+      placeholder="Descrizione elemento...">
+    <button type="button" class="checklist-delete" onclick="this.closest('.checklist-item').remove()" title="Rimuovi">🗑️</button>
+  `;
+  if (item.completed) div.classList.add('completed');
+  return div;
+}
+
+window.addChecklistItem = function addChecklistItem() {
+  const container = document.getElementById('taskChecklistContainer');
+  if (!container) return;
+  const item = { id: Date.now(), text: '', completed: false };
+  const row  = _buildChecklistRow(item);
+  container.appendChild(row);
+  row.querySelector('.checklist-text')?.focus();
+};
+
+window.loadChecklistItems = function loadChecklistItems(items) {
+  const container = document.getElementById('taskChecklistContainer');
+  if (!container) return;
+  container.innerHTML = '';
+  (items || []).forEach(item => container.appendChild(_buildChecklistRow(item)));
+};
+
+window.clearChecklistItems = function clearChecklistItems() {
+  const container = document.getElementById('taskChecklistContainer');
+  if (container) container.innerHTML = '';
+};
+
+window.getChecklistItems = function getChecklistItems() {
+  const container = document.getElementById('taskChecklistContainer');
+  if (!container) return [];
+  return Array.from(container.querySelectorAll('.checklist-item')).map(row => ({
+    id:        Number(row.dataset.checklistId) || Date.now(),
+    text:      row.querySelector('.checklist-text')?.value || '',
+    completed: row.querySelector('.checklist-check')?.checked || false,
+  }));
+};
+
 // ─── Markdown Editor ──────────────────────────────────────────────────────────
 
-/**
- * Applica la vista corretta (edit / view-only) su un editor markdown già creato.
- */
-function _applyMarkdownView(tabsDiv, previewDiv, textarea, isViewOnly) {
-  const editBtn    = tabsDiv.querySelector('[data-md-tab="edit"]');
-  const previewBtn = tabsDiv.querySelector('[data-md-tab="preview"]');
+/** ID del textarea collegato al modal fullscreen in uso. */
+let _fmdSourceId = null;
 
-  if (isViewOnly) {
-    if (editBtn)    { editBtn.style.display = 'none'; editBtn.classList.remove('active'); }
-    if (previewBtn) { previewBtn.classList.add('active'); }
-    textarea.style.display = 'none';
-    previewDiv.innerHTML = typeof marked !== 'undefined'
-      ? marked.parse(textarea.value || '')
-      : '<pre>' + (textarea.value || '') + '</pre>';
-    previewDiv.classList.add('active');
-  } else {
-    if (editBtn)    { editBtn.style.display = ''; editBtn.classList.add('active'); }
-    if (previewBtn) { previewBtn.classList.remove('active'); }
-    textarea.style.display = '';
-    previewDiv.classList.remove('active');
-  }
+/** Aggiorna la preview inline del wrapper associato a `textareaId`. */
+function _refreshInlinePreview(textareaId) {
+  const textarea = document.getElementById(textareaId);
+  const wrap     = document.querySelector('.md-inline-wrap[data-for="' + textareaId + '"]');
+  if (!wrap || !textarea) return;
+  const preview = wrap.querySelector('.md-inline-preview');
+  if (!preview) return;
+  preview.innerHTML = typeof marked !== 'undefined'
+    ? marked.parse(textarea.value || '')
+    : (textarea.value || '<em style="color:var(--text-tertiary)">Nessun contenuto</em>');
 }
 
 /**
- * Inizializza un editor markdown con tab Testo/Anteprima attorno a un textarea.
- * Idempotente: se i tab sono già presenti non li duplica.
+ * Converte un textarea in un campo markdown con anteprima inline e pulsanti fullscreen.
+ * - ✏️ apre il modal fullscreen in modalità modifica
+ * - 👁️ apre il modal fullscreen in modalità sola lettura
+ * Idempotente: se già inizializzato aggiorna solo l'anteprima.
  *
- * @param {string}      textareaId  - ID del textarea da arricchire
- * @param {string|null} containerId - ID del container già esistente (opzionale)
- * @param {boolean}     isViewOnly  - se true mostra solo la preview renderizzata
+ * @param {string}      textareaId  - ID del textarea sorgente
+ * @param {string|null} containerId - ID del container (opzionale, default: parentElement)
+ * @param {boolean}     isViewOnly  - se true nasconde il pulsante ✏️
  */
 window.createMarkdownEditor = function createMarkdownEditor(textareaId, containerId, isViewOnly) {
-  const textarea = document.getElementById(textareaId);
+  const textarea  = document.getElementById(textareaId);
   if (!textarea) return;
-
   const container = containerId
     ? document.getElementById(containerId)
     : textarea.parentElement;
   if (!container) return;
 
-  // Idempotenza: se i tab sono già presenti aggiorna solo la vista
-  const existing = container.querySelector('.markdown-tabs[data-for="' + textareaId + '"]');
+  // Idempotenza: se il wrapper esiste già aggiorna preview, visibilità pulsante
+  // e — se mancava — aggiunge il pulsante ✏️
+  const existing = container.querySelector('.md-inline-wrap[data-for="' + textareaId + '"]');
   if (existing) {
-    const existingPreview = container.querySelector('.markdown-preview[data-for="' + textareaId + '"]');
-    if (existingPreview) _applyMarkdownView(existing, existingPreview, textarea, isViewOnly);
+    _refreshInlinePreview(textareaId);
+    const header  = existing.querySelector('.md-inline-header');
+    let editBtn   = existing.querySelector('.md-btn-edit');
+    if (!isViewOnly && !editBtn && header) {
+      // Il wrapper era stato creato in modalità viewOnly: aggiunge il bottone mancante
+      editBtn = document.createElement('button');
+      editBtn.type      = 'button';
+      editBtn.className = 'md-btn-edit';
+      editBtn.title     = 'Modifica a tutto schermo';
+      editBtn.textContent = '✏️ Modifica';
+      editBtn.addEventListener('click', () => {
+        window.openFullscreenNoteEditor(textareaId, textarea.dataset.mdTitle || '📝 Modifica Note', false);
+      });
+      const viewBtn = header.querySelector('.md-btn-view');
+      if (viewBtn) header.insertBefore(editBtn, viewBtn);
+      else header.appendChild(editBtn);
+    }
+    if (editBtn) editBtn.style.display = isViewOnly ? 'none' : '';
     return;
   }
 
-  // Crea tab bar
-  const tabsDiv = document.createElement('div');
-  tabsDiv.className = 'markdown-tabs';
-  tabsDiv.setAttribute('data-for', textareaId);
-  tabsDiv.innerHTML =
-    '<button class="markdown-tab active" data-md-tab="edit">✏️ Testo</button>' +
-    '<button class="markdown-tab" data-md-tab="preview">👁️ Anteprima</button>';
+  // Nascondi il textarea (resta nel DOM come sorgente dati)
+  textarea.style.display = 'none';
 
-  // Crea pannello preview
+  // Crea wrapper
+  const wrap = document.createElement('div');
+  wrap.className = 'md-inline-wrap';
+  wrap.setAttribute('data-for', textareaId);
+
+  // Header con label e pulsanti
+  const header = document.createElement('div');
+  header.className = 'md-inline-header';
+  header.innerHTML =
+    '<span class="md-inline-label">Markdown</span>' +
+    (isViewOnly ? '' : '<button type="button" class="md-btn-edit" title="Modifica a tutto schermo">✏️ Modifica</button>') +
+    '<button type="button" class="md-btn-view" title="Visualizza a tutto schermo">👁️ Visualizza</button>';
+
+  // Preview inline
   const previewDiv = document.createElement('div');
-  previewDiv.className = 'markdown-preview';
-  previewDiv.setAttribute('data-for', textareaId);
+  previewDiv.className = 'markdown-preview active md-inline-preview';
+  previewDiv.innerHTML = typeof marked !== 'undefined'
+    ? marked.parse(textarea.value || '')
+    : (textarea.value || '<em style="color:var(--text-tertiary)">Nessun contenuto</em>');
 
-  // Inserisce tabs prima del textarea, preview subito dopo
-  container.insertBefore(tabsDiv, textarea);
-  textarea.insertAdjacentElement('afterend', previewDiv);
+  wrap.appendChild(header);
+  wrap.appendChild(previewDiv);
+  container.insertBefore(wrap, textarea);
 
-  // Event listener: switch tra i tab
-  tabsDiv.addEventListener('click', (e) => {
-    const btn = e.target.closest('[data-md-tab]');
-    if (!btn) return;
-    const target = btn.getAttribute('data-md-tab');
-    tabsDiv.querySelectorAll('.markdown-tab').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    if (target === 'preview') {
-      textarea.style.display = 'none';
-      previewDiv.innerHTML = typeof marked !== 'undefined'
-        ? marked.parse(textarea.value || '')
-        : '<pre>' + (textarea.value || '') + '</pre>';
-      previewDiv.classList.add('active');
-    } else {
-      textarea.style.display = '';
-      previewDiv.classList.remove('active');
-    }
+  // Pulsante ✏️ — apre fullscreen in modalità edit
+  if (!isViewOnly) {
+    header.querySelector('.md-btn-edit').addEventListener('click', () => {
+      window.openFullscreenNoteEditor(textareaId, textarea.dataset.mdTitle || '📝 Modifica Note', false);
+    });
+  }
+  // Pulsante 👁️ — apre fullscreen in sola lettura
+  header.querySelector('.md-btn-view').addEventListener('click', () => {
+    window.openFullscreenNoteEditor(textareaId, textarea.dataset.mdTitle || '📄 Visualizza Note', true);
   });
-
-  // Vista iniziale
-  _applyMarkdownView(tabsDiv, previewDiv, textarea, isViewOnly);
 };
+
+/** Apre il modal fullscreen collegato al textarea `textareaId`. */
+window.openFullscreenNoteEditor = function openFullscreenNoteEditor(textareaId, title, viewOnly) {
+  const textarea = document.getElementById(textareaId);
+  const modal    = document.getElementById('fullscreenNoteModal');
+  if (!textarea || !modal) return;
+
+  _fmdSourceId = textareaId;
+
+  const titleEl = document.getElementById('fmdTitle');
+  if (titleEl) titleEl.textContent = title || '📝 Note';
+
+  const fmdTA = document.getElementById('fmdTextarea');
+  if (fmdTA) fmdTA.value = textarea.value || '';
+
+  const fmdPrev = document.getElementById('fmdPreview');
+  if (fmdPrev && fmdTA) {
+    fmdPrev.innerHTML = typeof marked !== 'undefined'
+      ? marked.parse(fmdTA.value)
+      : fmdTA.value;
+  }
+
+  // Adatta la UI per view-only vs edit
+  const editorCol  = modal.querySelector('.fmd-col:first-child');
+  const saveBtn    = modal.querySelector('.fmd-footer button:last-child');
+  const previewCol = modal.querySelector('.fmd-col:last-child');
+  if (editorCol)  editorCol.style.display  = viewOnly ? 'none' : '';
+  if (saveBtn)    saveBtn.style.display    = viewOnly ? 'none' : '';
+  if (previewCol) previewCol.style.flex    = viewOnly ? '1' : '';
+
+  modal.classList.add('active');
+  if (!viewOnly && fmdTA) setTimeout(() => fmdTA.focus(), 50);
+};
+
+/** Chiude il modal fullscreen senza salvare. */
+window.closeFullscreenNoteEditor = function closeFullscreenNoteEditor() {
+  document.getElementById('fullscreenNoteModal')?.classList.remove('active');
+  document.getElementById('fmdEmojiPanel')?.classList.remove('open');
+  _fmdSourceId = null;
+};
+
+/** Salva il contenuto nel textarea origine, aggiorna la preview inline e chiude. */
+window.saveAndCloseFullscreenNoteEditor = function saveAndCloseFullscreenNoteEditor() {
+  const fmdTA = document.getElementById('fmdTextarea');
+  if (fmdTA && _fmdSourceId) {
+    const textarea = document.getElementById(_fmdSourceId);
+    if (textarea) {
+      textarea.value = fmdTA.value;
+      // Notifica i listener oninput (es. saveProjectGeneralInfo)
+      textarea.dispatchEvent(new Event('input', { bubbles: true }));
+      _refreshInlinePreview(_fmdSourceId);
+    }
+  }
+  window.closeFullscreenNoteEditor();
+};
+
+/** Inserisce sintassi markdown nel fmdTextarea alla posizione del cursore. */
+window.fmdInsert = function fmdInsert(type) {
+  const ta = document.getElementById('fmdTextarea');
+  if (!ta) return;
+  const s   = ta.selectionStart;
+  const e   = ta.selectionEnd;
+  const sel = ta.value.substring(s, e);
+  const map = {
+    bold:      ['**',     '**',    sel || 'testo'],
+    italic:    ['*',      '*',     sel || 'testo'],
+    strike:    ['~~',     '~~',    sel || 'testo'],
+    h1:        ['# ',     '',      sel || 'Titolo 1'],
+    h2:        ['## ',    '',      sel || 'Titolo 2'],
+    h3:        ['### ',   '',      sel || 'Titolo 3'],
+    ul:        ['- ',     '',      sel || 'elemento'],
+    ol:        ['1. ',    '',      sel || 'elemento'],
+    quote:     ['> ',     '',      sel || 'citazione'],
+    code:      ['`',      '`',     sel || 'codice'],
+    codeblock: ['```\n',  '\n```', sel || 'codice'],
+    table:     ['| Col1 | Col2 |\n|------|------|\n| ', ' | val2 |', sel || 'val1'],
+    link:      ['[',      '](https://)', sel || 'testo'],
+    hr:        ['\n---\n', '',     ''],
+  };
+  const parts = map[type];
+  if (!parts) return;
+  const [before, after, body] = parts;
+  ta.setRangeText(before + (sel || body) + after, s, e, 'select');
+  const prev = document.getElementById('fmdPreview');
+  if (prev) prev.innerHTML = typeof marked !== 'undefined' ? marked.parse(ta.value) : ta.value;
+  ta.focus();
+};
+
+/** Inserisce un emoji nel fmdTextarea alla posizione del cursore. */
+window.fmdInsertEmoji = function fmdInsertEmoji(emoji) {
+  const ta = document.getElementById('fmdTextarea');
+  if (!ta) return;
+  ta.setRangeText(emoji, ta.selectionStart, ta.selectionEnd, 'end');
+  const prev = document.getElementById('fmdPreview');
+  if (prev) prev.innerHTML = typeof marked !== 'undefined' ? marked.parse(ta.value) : ta.value;
+  document.getElementById('fmdEmojiPanel')?.classList.remove('open');
+  ta.focus();
+};
+
+/** Mostra/nasconde il pannello emoji del fullscreen editor. */
+window.fmdToggleEmojiPanel = function fmdToggleEmojiPanel(event) {
+  event.stopPropagation();
+  document.getElementById('fmdEmojiPanel')?.classList.toggle('open');
+};
+
+// Chiudi emoji panel cliccando fuori
+document.addEventListener('click', () => {
+  document.getElementById('fmdEmojiPanel')?.classList.remove('open');
+});
+
+// Preview fullscreen in tempo reale mentre si digita
+document.getElementById('fmdTextarea')?.addEventListener('input', () => {
+  const ta   = document.getElementById('fmdTextarea');
+  const prev = document.getElementById('fmdPreview');
+  if (ta && prev) prev.innerHTML = typeof marked !== 'undefined' ? marked.parse(ta.value) : ta.value;
+});
+
+// Chiudi fullscreen con ESC
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    const modal = document.getElementById('fullscreenNoteModal');
+    if (modal?.classList.contains('active')) window.closeFullscreenNoteEditor();
+  }
+});
 
 // ─── Esposizione globale ──────────────────────────────────────────────────────
 // Le funzioni usate negli handler onclick="" del template HTML devono essere
@@ -507,7 +688,10 @@ window.updateMeetingTagsSuggestions = Meetings.updateMeetingTagsSuggestions;
 window.saveProjectMeeting       = Meetings.saveProjectMeeting;
 window.deleteProjectMeeting     = Meetings.deleteProjectMeeting;
 window.openProjectMeetingModal  = Meetings.openProjectMeetingModal;
+window.openMeetingModal         = Meetings.openProjectMeetingModal;   // alias usato in index.html
 window.closeProjectMeetingModal = Meetings.closeProjectMeetingModal;
+window.closeMeetingModal        = Meetings.closeProjectMeetingModal;  // alias usato in #meetingModal
+window.saveMeeting              = Meetings.saveProjectMeeting;        // alias usato in #meetingModal
 
 // Plants
 window.savePlant                = Plants.savePlant;
@@ -566,6 +750,288 @@ window.exportData               = ExportImport.exportData;
 window.importData               = ExportImport.importData;
 window.importDataMerge          = ExportImport.importDataMerge;
 window.wipeDatabase             = ExportImport.wipeDatabase;
+
+/** Esporta il progetto corrente come file Markdown completo con diagramma Gantt Mermaid. */
+window.exportProjectMarkdown = function exportProjectMarkdown() {
+  const project = state.projects.find(p => p.id == state.currentProjectId);
+  if (!project) { alert('Nessun progetto selezionato.'); return; }
+
+  // Helpers
+  const esc      = s => (s || '').replace(/\|/g, '\\|');
+  const escGantt = s => (s || '').replace(/:/g, '-').replace(/,/g, ' ').replace(/[()\[\]{}";#@&%]/g, '').replace(/\s+/g, ' ').trim() || 'task';
+  const resName  = id => {
+    const r = state.resources.find(r => String(r.id) === String(id));
+    return r ? `${r.firstName || ''} ${r.lastName || ''}`.trim() : id;
+  };
+  const fmtDate  = d => d ? d.replace(/-/g, '/') : '-';
+  const today    = new Date().toISOString().slice(0, 10);
+
+  const lines = [];
+
+  // ── Intestazione ──────────────────────────────────────────────────────────
+  lines.push(`# ${project.name || 'Progetto'}`);
+  lines.push('');
+  const meta = [];
+  if (project.client)    meta.push(`**Cliente:** ${project.client}`);
+  if (project.code)      meta.push(`**Codice:** ${project.code}`);
+  if (project.startDate || project.endDate)
+    meta.push(`**Periodo:** ${fmtDate(project.startDate)} — ${fmtDate(project.endDate)}`);
+  if (project.status)    meta.push(`**Stato:** ${project.status}`);
+  if (meta.length) { lines.push(meta.join('  \n')); lines.push(''); }
+
+  // ── Indice ────────────────────────────────────────────────────────────────
+  const toc = [];
+  if (project.description || project.generalInfo) toc.push('- [Descrizione e Info Generali](#descrizione-e-info-generali)');
+  const hasTasks = project.tasks?.length;
+  if (hasTasks)                  toc.push('- [Diagramma Gantt](#diagramma-gantt)');
+  if (project.milestones?.length) toc.push('- [Punti di Controllo](#punti-di-controllo)');
+  if (hasTasks)                  toc.push('- [Attività per Gruppo](#attività-per-gruppo)');
+  if (project.meetings?.length)  toc.push('- [Riunioni](#riunioni)');
+  if (project.offers?.length)    toc.push('- [Offerte](#offerte)');
+  if (project.issues?.length)    toc.push('- [Issue](#issue)');
+  if (project.updates?.length)   toc.push('- [Aggiornamenti](#aggiornamenti)');
+  if (toc.length) { lines.push(...toc); lines.push(''); lines.push('---'); lines.push(''); }
+
+  // ── Descrizione e Info Generali ───────────────────────────────────────────
+  if (project.description || project.generalInfo) {
+    lines.push('## Descrizione e Info Generali');
+    lines.push('');
+    if (project.description) { lines.push(project.description); lines.push(''); }
+    if (project.generalInfo)  { lines.push(project.generalInfo); lines.push(''); }
+    lines.push('---'); lines.push('');
+  }
+
+  // ── Diagramma Gantt (Mermaid) ─────────────────────────────────────────────
+  if (hasTasks) {
+    lines.push('## Diagramma Gantt');
+    lines.push('');
+    lines.push('```mermaid');
+    lines.push('gantt');
+    lines.push(`    title ${escGantt(project.name || 'Progetto')}`);
+    lines.push('    dateFormat YYYY-MM-DD');
+    lines.push('    excludes weekends');
+    lines.push('    todayMarker on');
+    lines.push('');
+
+    const groups   = (project.taskGroups || []).slice().sort((a, b) => (a.order || 0) - (b.order || 0));
+    const tasks    = (project.tasks || []).filter(t => t.startDate && t.endDate && t.status !== 'annullata');
+    const taskIdx  = {};  // id → gantt safe id
+    tasks.forEach((t, i) => { taskIdx[t.id] = `t${i}`; });
+
+    // Raggruppa i task
+    const grouped   = new Map();
+    const ungrouped = [];
+    tasks.forEach(t => {
+      const g = groups.find(g => g.id === t.groupId);
+      if (g) {
+        if (!grouped.has(g.id)) grouped.set(g.id, { name: g.name, tasks: [] });
+        grouped.get(g.id).tasks.push(t);
+      } else {
+        ungrouped.push(t);
+      }
+    });
+
+    // Sezione per ogni gruppo
+    for (const g of groups) {
+      const entry = grouped.get(g.id);
+      if (!entry || !entry.tasks.length) continue;
+      lines.push(`    section ${escGantt(entry.name)}`);
+      entry.tasks.forEach(t => {
+        const tid  = taskIdx[t.id];
+        const mods = [];
+        if (t.status === 'bloccata' || (t.endDate < today && t.completion < 100)) mods.push('crit');
+        if (t.completion >= 100) mods.push('done');
+        else if (t.startDate <= today && t.endDate >= today) mods.push('active');
+        const modStr = mods.length ? mods.join(', ') + ', ' : '';
+        lines.push(`        ${escGantt(t.name)} :${modStr ? ' ' + modStr : ' '}${tid}, ${t.startDate}, ${t.endDate}`);
+      });
+      lines.push('');
+    }
+
+    // Sezione attività senza gruppo
+    if (ungrouped.length) {
+      lines.push('    section Attività');
+      ungrouped.forEach(t => {
+        const tid  = taskIdx[t.id];
+        const mods = [];
+        if (t.status === 'bloccata' || (t.endDate < today && t.completion < 100)) mods.push('crit');
+        if (t.completion >= 100) mods.push('done');
+        else if (t.startDate <= today && t.endDate >= today) mods.push('active');
+        const modStr = mods.length ? mods.join(', ') + ', ' : '';
+        lines.push(`        ${escGantt(t.name)} :${modStr ? ' ' + modStr : ' '}${tid}, ${t.startDate}, ${t.endDate}`);
+      });
+      lines.push('');
+    }
+
+    // Sezione milestone
+    const mils = (project.milestones || []).filter(m => m.date);
+    if (mils.length) {
+      lines.push('    section Milestone');
+      mils.forEach((m, i) => {
+        const mod = m.completed ? 'done, ' : '';
+        lines.push(`        ${escGantt(m.name)} : ${mod}milestone, ms${i}, ${m.date}, 1d`);
+      });
+    }
+
+    lines.push('```');
+    lines.push('');
+    lines.push('---'); lines.push('');
+  }
+
+  // ── Punti di Controllo ────────────────────────────────────────────────────
+  if (project.milestones?.length) {
+    lines.push('## Punti di Controllo');
+    lines.push('');
+    lines.push('| Nome | Data | Stato |');
+    lines.push('|------|------|:-----:|');
+    const todayMs = new Date(today).getTime();
+    project.milestones
+      .slice().sort((a, b) => (a.date || '').localeCompare(b.date || ''))
+      .forEach(m => {
+        let stato = '';
+        if (m.date) {
+          const diff = Math.round((new Date(m.date).getTime() - todayMs) / 86400000);
+          if (diff < 0)       stato = '✅ Superata';
+          else if (diff === 0) stato = '⚡ Oggi';
+          else if (diff === 1) stato = '⏳ Domani';
+          else                 stato = `⏳ tra ${diff}gg`;
+        }
+        lines.push(`| ${esc(m.name)} | ${fmtDate(m.date)} | ${stato} |`);
+      });
+    lines.push('');
+    lines.push('---'); lines.push('');
+  }
+
+  // ── Attività per Gruppo ───────────────────────────────────────────────────
+  if (hasTasks) {
+    lines.push('## Attività per Gruppo');
+    lines.push('');
+
+    const allTasks  = project.tasks || [];
+    const groups    = (project.taskGroups || []).slice().sort((a, b) => (a.order || 0) - (b.order || 0));
+    const printTask = t => {
+      lines.push(`#### ${t.name}${t.status === 'annullata' ? ' ~~(annullata)~~' : ''}`);
+      const info = [];
+      if (t.startDate)    info.push(`**Inizio:** ${fmtDate(t.startDate)}`);
+      if (t.endDate)      info.push(`**Fine:** ${fmtDate(t.endDate)}`);
+      if (t.duration)     info.push(`**Durata:** ${t.duration}gg`);
+      info.push(`**Completamento:** ${t.completion || 0}%`);
+      if (t.status)       info.push(`**Stato:** ${t.status}`);
+      if (t.priority)     info.push(`**Priorità:** ${t.priority}`);
+      if (t.resources?.length) {
+        const names = [...new Set(t.resources.map(r => resName(r.resourceId)))].join(', ');
+        info.push(`**Risorse:** ${names}`);
+      }
+      lines.push(info.join('  \n'));
+      if (t.notes) { lines.push(''); lines.push('**Note:**'); lines.push(''); lines.push(t.notes); }
+      if (t.checklist?.length) {
+        lines.push('');
+        lines.push('**Checklist:**');
+        t.checklist.forEach(c => lines.push(`- [${c.completed ? 'x' : ' '}] ${c.text}`));
+      }
+      lines.push('');
+    };
+
+    groups.forEach(g => {
+      const gTasks = allTasks.filter(t => t.groupId === g.id);
+      if (!gTasks.length) return;
+      lines.push(`### ${g.name}`);
+      lines.push('');
+      gTasks.forEach(printTask);
+    });
+
+    const ungrouped = allTasks.filter(t => !t.groupId || !groups.find(g => g.id === t.groupId));
+    if (ungrouped.length) {
+      if (groups.length) { lines.push('### Senza Gruppo'); lines.push(''); }
+      ungrouped.forEach(printTask);
+    }
+
+    lines.push('---'); lines.push('');
+  }
+
+  // ── Riunioni ──────────────────────────────────────────────────────────────
+  if (project.meetings?.length) {
+    lines.push('## Riunioni');
+    lines.push('');
+    [...project.meetings]
+      .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+      .forEach(m => {
+        lines.push(`### ${fmtDate(m.date)} — ${m.subject || ''}`);
+        if (m.participants) lines.push(`**Partecipanti:** ${m.participants}`);
+        if (m.topics) { lines.push(''); lines.push(m.topics); }
+        lines.push('');
+      });
+    lines.push('---'); lines.push('');
+  }
+
+  // ── Offerte ───────────────────────────────────────────────────────────────
+  if (project.offers?.length) {
+    lines.push('## Offerte');
+    lines.push('');
+    lines.push('| Codice | Titolo | Data | Preventivo | Valore | Stato |');
+    lines.push('|--------|--------|------|-----------|--------|-------|');
+    project.offers.forEach(o => {
+      const val = o.value ? `€ ${parseFloat(o.value).toFixed(2)}` : '-';
+      lines.push(`| ${esc(o.offerCode||'-')} | ${esc(o.title)} | ${fmtDate(o.date)} | ${esc(o.estimate||'-')} | ${val} | ${esc(o.status||'-')} |`);
+    });
+    // Note offerte
+    project.offers.filter(o => o.notes).forEach(o => {
+      lines.push('');
+      lines.push(`**Note offerta "${o.title}":**`);
+      lines.push('');
+      lines.push(o.notes);
+    });
+    lines.push('');
+    lines.push('---'); lines.push('');
+  }
+
+  // ── Issue ─────────────────────────────────────────────────────────────────
+  if (project.issues?.length) {
+    lines.push('## Issue');
+    lines.push('');
+    lines.push('| Titolo | Priorità | Assegnato a | Stato |');
+    lines.push('|--------|----------|-------------|-------|');
+    project.issues.forEach(i => {
+      const assignee = i.assignee ? resName(i.assignee) : 'Non assegnato';
+      lines.push(`| ${esc(i.title)} | ${esc(i.priority||'-')} | ${esc(assignee)} | ${esc(i.status||'-')} |`);
+    });
+    project.issues.filter(i => i.description).forEach(i => {
+      lines.push('');
+      lines.push(`**Note issue "${i.title}":**`);
+      lines.push('');
+      lines.push(i.description);
+    });
+    lines.push('');
+    lines.push('---'); lines.push('');
+  }
+
+  // ── Aggiornamenti ─────────────────────────────────────────────────────────
+  if (project.updates?.length) {
+    lines.push('## Aggiornamenti');
+    lines.push('');
+    [...project.updates]
+      .sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''))
+      .forEach(u => {
+        const d   = u.timestamp ? new Date(u.timestamp).toLocaleString('it-IT') : '-';
+        const tag = u.tags?.length ? `  ${u.tags.join(' ')}` : '';
+        lines.push(`### ${d}${tag}`);
+        lines.push('');
+        lines.push(u.text || '');
+        lines.push('');
+      });
+  }
+
+  // ── Download ──────────────────────────────────────────────────────────────
+  const content  = lines.join('\n');
+  const blob     = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+  const url      = URL.createObjectURL(blob);
+  const a        = document.createElement('a');
+  const safeName = (project.name || 'progetto').replace(/[^a-z0-9_\-]/gi, '_');
+  a.href     = url;
+  a.download = `${safeName}.md`;
+  a.click();
+  URL.revokeObjectURL(url);
+};
 
 // ActivityMap
 window.renderActivityMap        = ActivityMap.renderActivityMap;

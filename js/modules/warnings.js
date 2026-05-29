@@ -16,6 +16,7 @@
  */
 
 import * as state from '../state.js';
+import * as Auth from './auth.js';
 import {
     formatDateLocal,
     escapeHtml,
@@ -127,7 +128,15 @@ export function collectAllWarnings() {
     const warnings  = [];
     const today     = formatDateLocal(new Date());
     const projects  = state.projects;
-    const resources = state.resources;
+
+    // Limita le risorse analizzate ai tipi consentiti per gli editor con restrizioni
+    const _wUser = Auth.getCurrentUser();
+    const _wIsRestrictedEditor = _wUser?.role === 'editor'
+        && Array.isArray(_wUser?.allowedResourceTypes)
+        && _wUser.allowedResourceTypes.length > 0;
+    const resources = _wIsRestrictedEditor
+        ? state.resources.filter(r => new Set(_wUser.allowedResourceTypes).has(r.type))
+        : state.resources;
 
     // ── 1. Sovraccarichi di risorse ──────────────────────────────────────────
     resources.forEach(resource => {

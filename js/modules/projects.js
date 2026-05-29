@@ -61,6 +61,7 @@ import {
 import { calculateHolidays, renderHolidays } from './holidays.js';
 import { updateResourceSelects }             from './resources.js';
 import { findTasksWithAbsenceDelays }        from './warnings.js';
+import * as Auth                             from './auth.js';
 import { renderMilestones }                  from './milestones.js';
 import { renderProjectOffers, renderProjectIssues } from './offers.js';
 import { renderProjectMeetings }             from './meetings.js';
@@ -971,7 +972,12 @@ export async function applyTaskLinks() {
     } while (changed && iteration < maxIterations);
 
     if (iteration > 0) {
-        await db.save('projects', project);
+        // Non salvare se l'utente ha solo accesso in lettura (personal / viewer)
+        const _aplUser = Auth.getCurrentUser();
+        const _canWrite = _aplUser?.role === 'admin' || _aplUser?.role === 'editor';
+        if (_canWrite) {
+            await db.save('projects', project);
+        }
         if (typeof window.renderTasks === 'function') window.renderTasks();
         renderGantt();
     }

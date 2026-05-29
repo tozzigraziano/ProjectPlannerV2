@@ -2845,7 +2845,47 @@
             color: var(--text-secondary);
         }
 
-        @keyframes modalSlideDown {
+        .checklist-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 6px;
+        }
+        .checklist-item.completed .checklist-text {
+            text-decoration: line-through;
+            color: var(--text-tertiary);
+        }
+        .checklist-check {
+            flex-shrink: 0;
+            cursor: pointer;
+            width: 15px;
+            height: 15px;
+        }
+        .checklist-text {
+            flex: 1;
+            padding: 4px 7px;
+            font-size: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background: var(--input-bg);
+            color: var(--text-primary);
+        }
+        .checklist-delete {
+            flex-shrink: 0;
+            padding: 2px 6px;
+            font-size: 11px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            color: var(--text-tertiary);
+            border-radius: 3px;
+        }
+        .checklist-delete:hover {
+            background: var(--danger-color, #e74c3c);
+            color: white;
+        }
+
+
             from {
                 transform: translateY(-50px);
                 opacity: 0;
@@ -3214,6 +3254,56 @@
             color: var(--text-primary);
         }
 
+        /* Markdown Inline Wrapper (preview + pulsanti fullscreen) */
+        .md-inline-wrap {
+            width: 100%;
+            flex: 1;
+            min-width: 0;
+        }
+        .md-inline-header {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 5px;
+        }
+        .md-inline-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            flex: 1;
+        }
+        .md-btn-edit,
+        .md-btn-view {
+            padding: 3px 9px;
+            font-size: 11px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: background 0.15s, color 0.15s;
+            white-space: nowrap;
+        }
+        .md-btn-edit:hover {
+            background: var(--accent-color);
+            color: white;
+            border-color: var(--accent-color);
+        }
+        .md-btn-view:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+        .md-inline-preview {
+            min-height: 60px;
+            max-height: 220px;
+            overflow-y: auto;
+        }
+        .md-inline-preview:empty::after {
+            content: 'Nessun contenuto';
+            color: var(--text-tertiary);
+            font-style: italic;
+            font-size: 12px;
+        }
+
         /* Modal note a tutto schermo */
         #fullscreenNoteModal {
             display: none;
@@ -3511,10 +3601,17 @@
 
         .plant-info-badge {
             font-size: 11px;
-            color: var(--text-tertiary);
-            padding: 2px 8px;
+            color: var(--text-secondary);
+            padding: 3px 8px;
             background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
             border-radius: 3px;
+            vertical-align: middle;
+            max-width: 320px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            display: inline-block;
         }
 
         /* === DASHBOARD STYLES === */
@@ -3859,8 +3956,40 @@
     margin-right: 6px;
     vertical-align: middle;
 }
+.task-group-header-inner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.task-group-summary {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    flex: 1;
+    font-size: 0.82em;
+    color: var(--text-secondary);
+}
+.task-group-summary span {
+    white-space: nowrap;
+}
+.task-group-resources {
+    max-width: 320px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: inline-block;
+    vertical-align: middle;
+}
+.task-group-actions {
+    display: flex;
+    gap: 4px;
+    margin-left: auto;
+    flex-shrink: 0;
+}
 
-/* ─── Auth / Login ─────────────────────────────────────────────────────────── */
+
 #loginOverlay {
     display: none;
     position: fixed;

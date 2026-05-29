@@ -133,6 +133,10 @@ export function openProjectMeetingModal(id = null, viewOnly = false) {
         document.getElementById('meetingParticipants').value = '';
         document.getElementById('meetingTopics').value       = '';
     }
+
+    if (typeof createMarkdownEditor === 'function') {
+        createMarkdownEditor('meetingTopics', null, isViewOnly);
+    }
 }
 
 /** Chiude il modal riunione di progetto. */

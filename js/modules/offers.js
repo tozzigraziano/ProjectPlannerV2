@@ -221,9 +221,9 @@ export function renderProjectOffers() {
             <td>${value}</td>
             <td><span style="color:${OFFER_STATUS_COLORS[offer.status]}">${OFFER_STATUS_LABELS[offer.status]}</span></td>
             <td>
-                <button onclick="event.stopPropagation(); offers.editOffer(${index})"
+                <button onclick="event.stopPropagation(); editOffer(${index})"
                     title="Modifica" style="padding:4px 8px; font-size:12px;">✏️</button>
-                <button onclick="event.stopPropagation(); offers.deleteOffer(${index})"
+                <button onclick="event.stopPropagation(); deleteOffer(${index})"
                     title="Elimina" style="padding:4px 8px; font-size:12px;">🗑️</button>
             </td>
         `;
@@ -415,9 +415,9 @@ export function renderProjectIssues() {
             </span></td>
             <td>${date.toLocaleDateString('it-IT')}</td>
             <td>
-                <button onclick="event.stopPropagation(); offers.editIssue(${index})"
+                <button onclick="event.stopPropagation(); editIssue(${index})"
                     title="Modifica" style="padding:4px 8px; font-size:12px;">✏️</button>
-                <button onclick="event.stopPropagation(); offers.deleteIssue(${index})"
+                <button onclick="event.stopPropagation(); deleteIssue(${index})"
                     title="Elimina" style="padding:4px 8px; font-size:12px;">🗑️</button>
             </td>
         `;

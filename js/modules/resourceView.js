@@ -107,8 +107,19 @@ export function updateResourceViewFilters() {
     const resourceSelect = document.getElementById('resourceViewFilter');
     if (resourceSelect) {
         const currentValue = resourceSelect.value;
+        const _fUser = Auth.getCurrentUser();
+
+        // Calcola le risorse visibili in base al ruolo
+        let visibleResources = state.resources;
+        if (_fUser?.role === 'editor'
+            && Array.isArray(_fUser?.allowedResourceTypes)
+            && _fUser.allowedResourceTypes.length > 0) {
+            const editorTypes = new Set(_fUser.allowedResourceTypes);
+            visibleResources = state.resources.filter(r => editorTypes.has(r.type));
+        }
+
         resourceSelect.innerHTML = '<option value="">Tutte le Risorse</option>';
-        state.resources.forEach(r => {
+        visibleResources.forEach(r => {
             const option = document.createElement('option');
             option.value       = r.id;
             option.textContent = `${r.firstName} ${r.lastName}`;
@@ -117,7 +128,6 @@ export function updateResourceViewFilters() {
         });
 
         // Utente personal: blocca il filtro sulla propria risorsa
-        const _fUser = Auth.getCurrentUser();
         if (_fUser?.role === 'personal' && _fUser?.resourceId) {
             resourceSelect.value    = _fUser.resourceId;
             resourceSelect.disabled = true;

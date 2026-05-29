@@ -73,6 +73,12 @@ export async function save(store, data) {
   return apiFetch(`/${apiStore}/${data.id}`, 'PUT', data);
 }
 
+/** Aggiornamento parziale (PATCH) — usato da utenti personal per aggiornare solo i campi consentiti. */
+export async function patch(store, id, data) {
+  const apiStore = store === 'localHolidays' ? 'holidays/local' : store;
+  return apiFetch(`/${apiStore}/${id}`, 'PATCH', data);
+}
+
 /** Elimina un record per id. */
 export async function remove(store, id) {
   const apiStore = store === 'localHolidays' ? 'holidays/local' : store;
