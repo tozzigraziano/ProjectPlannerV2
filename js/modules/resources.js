@@ -255,7 +255,7 @@ export function openResourceModal(id = null) {
     // Editor con tipi risorsa limitati: read-only se il tipo di questa risorsa non è consentito
     if (id) {
         const _ormUser = Auth.getCurrentUser();
-        const _ormRes  = state.resources.find(r => r.id === id);
+        const _ormRes  = state.resources.find(r => r.id == id);
         if (_ormUser?.role === 'editor'
             && Array.isArray(_ormUser.allowedResourceTypes)
             && _ormUser.allowedResourceTypes.length > 0
@@ -622,16 +622,16 @@ export async function saveResource() {
     });
 
     const editingId = state.editingResourceId;
+    const existing  = editingId ? state.resources.find(r => r.id == editingId) : null;
     const resource  = {
+        ...(existing || {}),
         id:        editingId || generateId(),
         firstName,
         lastName,
         type:      document.getElementById('resourceType').value || '',
         absences,
         permits,
-        order:     editingId
-            ? (state.resources.find(r => r.id === editingId)?.order ?? 0)
-            : state.resources.length
+        order:     existing?.order ?? state.resources.length
     };
 
     // Verifica sovrapposizioni con attività attive
@@ -652,8 +652,8 @@ export async function saveResource() {
 
     // Aggiorna state
     if (editingId) {
-        const idx = state.resources.findIndex(r => r.id === editingId);
-        state.resources[idx] = resource;
+        const idx = state.resources.findIndex(r => r.id == editingId);
+        if (idx !== -1) state.resources[idx] = resource;
     } else {
         state.resources.push(resource);
     }
@@ -688,7 +688,7 @@ export async function saveResource() {
 
 /** Carica i dati di una risorsa esistente nel form del modal. */
 export function editResource(id) {
-    const resource = state.resources.find(r => r.id === id);
+    const resource = state.resources.find(r => r.id == id);
     if (!resource) return;
 
     state.setEditingResourceId(id);
@@ -781,7 +781,7 @@ export function editResource(id) {
 /** Elimina una risorsa previa conferma. */
 export async function deleteResource(id) {
     if (!confirm('Sei sicuro di voler eliminare questa risorsa?')) return;
-    state.setResources(state.resources.filter(r => r.id !== id));
+    state.setResources(state.resources.filter(r => r.id != id));
     await db.remove('resources', id);
     renderResources();
     updateResourceSelects();
@@ -884,12 +884,12 @@ export function renderResources() {
             <td>${typeLabel}</td>
             <td style="font-size: 11px;">${allAbsencesStr}</td>
             <td style="text-align: center;">
-                <button onclick="resourcesModule.toggleResourceVisibility(${resource.id})" ${_canManage ? '' : 'disabled'} style="padding: 4px 8px; font-size: 18px; cursor: pointer; ${isHidden ? 'opacity: 0.3;' : ''}" title="${isHidden ? 'Mostra in Gantt e Vista Risorse' : 'Nascondi da Gantt e Vista Risorse'}">${isHidden ? '○' : '●'}</button>
+                <button onclick="resourcesModule.toggleResourceVisibility('${resource.id}')" ${_canManage ? '' : 'disabled'} style="padding: 4px 8px; font-size: 18px; cursor: pointer; ${isHidden ? 'opacity: 0.3;' : ''}" title="${isHidden ? 'Mostra in Gantt e Vista Risorse' : 'Nascondi da Gantt e Vista Risorse'}">${isHidden ? '○' : '●'}</button>
             </td>
             <td class="action-buttons">
-                <button onclick="resourcesModule.exportResourceMarkdown(${resource.id})" class="secondary" title="Esporta riepilogo attività in Markdown">📄 Esporta MD</button>
-                <button onclick="resourcesModule.openResourceModal(${resource.id})" class="secondary">✏️ Modifica</button>
-                <button onclick="resourcesModule.deleteResource(${resource.id})" class="delete" ${_hideActions}>🗑️ Elimina</button>
+                <button onclick="resourcesModule.exportResourceMarkdown('${resource.id}')" class="secondary" title="Esporta riepilogo attività in Markdown">📄 Esporta MD</button>
+                <button onclick="resourcesModule.openResourceModal('${resource.id}')" class="secondary">✏️ Modifica</button>
+                <button onclick="resourcesModule.deleteResource('${resource.id}')" class="delete" ${_hideActions}>🗑️ Elimina</button>
             </td>
         `;
         tbody.appendChild(tr);
@@ -927,7 +927,7 @@ export async function moveResourceDown(index) {
 
 /** Alterna la visibilità di una risorsa nel Gantt e nella Vista Risorse. */
 export async function toggleResourceVisibility(resourceId) {
-    const resource = state.resources.find(r => r.id === resourceId);
+    const resource = state.resources.find(r => r.id == resourceId);
     if (!resource) return;
     resource.hidden = !resource.hidden;
     await db.save('resources', resource);

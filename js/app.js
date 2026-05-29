@@ -480,6 +480,11 @@ window.renderActivityMap        = ActivityMap.renderActivityMap;
 
 // CheckpointCalendar
 window.renderCheckpointCalendar = CheckpointCalendar.renderCheckpointCalendar;
+window.navigateCheckpointCalendar = (dir) => {
+    if (dir === -1) CheckpointCalendar.checkpointCalPrev();
+    else if (dir === 1) CheckpointCalendar.checkpointCalNext();
+    else CheckpointCalendar.checkpointCalToday();
+};
 
 // QuickNotes
 window.renderQuickNotes                 = QuickNotes.renderQuickNotes;
@@ -529,13 +534,14 @@ window.renderResourceTypes              = Resources.renderResourceTypesList;
 window.saveResourceTypes                = Resources.saveResourceTypes;
 window.addResourceTypeRow               = Resources.addResourceType;
 window.removeResourceTypeRow            = Resources.removeResourceType;
-window.addAbsenceRow                    = Resources.addAbsenceRow;
-window.removeAbsenceRow                 = Resources.removeAbsenceRow;
-window.addPermessoRow                   = Resources.addPermessoRow;
-window.removePermessoRow                = Resources.removePermessoRow;
-window.previewResourceCalendar          = Resources.previewResourceCalendar;
-window.resourceCalPrev                  = Resources.resourceCalPrev;
-window.resourceCalNext                  = Resources.resourceCalNext;
+window.addAbsenceRow                    = Resources.addAbsenceRange;
+window.removeAbsenceRow                 = Resources.removeAbsenceRange;
+window.addPermessoRow                   = Resources.addPermitRange;
+window.removePermessoRow                = Resources.removePermitRange;
+window.previewResourceCalendar          = Resources.renderResourceCalendarPreview;
+window.navigateResourceCalendar         = Resources.navigateResourceCalendar;
+window.resourceCalPrev                  = () => Resources.navigateResourceCalendar(-1);
+window.resourceCalNext                  = () => Resources.navigateResourceCalendar(1);
 window.exportResourceMarkdown           = Resources.exportResourceMarkdown;
 
 // Plants (funzioni aggiuntive)
